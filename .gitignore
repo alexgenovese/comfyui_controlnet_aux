@@ -179,5 +179,4 @@ wandb
 ckpts/
 
 test.ipynb
-config.yaml
 test.ipynb
