@@ -48,10 +48,10 @@ else:
     USE_SYMLINKS = False
     ORT_PROVIDERS = ["CUDAExecutionProvider", "DirectMLExecutionProvider", "OpenVINOExecutionProvider", "ROCMExecutionProvider", "CPUExecutionProvider", "CoreMLExecutionProvider"]
 
-os.environ['AUX_ANNOTATOR_CKPTS_PATH'] = annotator_ckpts_path
-os.environ['AUX_TEMP_DIR'] = str(TEMP_DIR)
-os.environ['AUX_USE_SYMLINKS'] = str(USE_SYMLINKS)
-os.environ['AUX_ORT_PROVIDERS'] = str(",".join(ORT_PROVIDERS))
+os.environ['AUX_ANNOTATOR_CKPTS_PATH'] = os.getenv('AUX_ANNOTATOR_CKPTS_PATH', annotator_ckpts_path)
+os.environ['AUX_TEMP_DIR'] = os.getenv('AUX_TEMP_DIR', str(TEMP_DIR))
+os.environ['AUX_USE_SYMLINKS'] = os.getenv('AUX_USE_SYMLINKS', str(USE_SYMLINKS))
+os.environ['AUX_ORT_PROVIDERS'] = os.getenv('AUX_ORT_PROVIDERS', str(",".join(ORT_PROVIDERS)))
 
 log.info(f"Using ckpts path: {annotator_ckpts_path}")
 log.info(f"Using symlinks: {USE_SYMLINKS}")
@@ -91,16 +91,35 @@ def common_annotator_call(model, tensor_image, input_batch=False, show_pbar=True
             pbar.update(1)
     return out_tensor
 
-def create_node_input_types(**extra_kwargs):
-    return {
-        "required": {
-            "image": ("IMAGE",)
-        },
-        "optional": {
-            **extra_kwargs,
-            "resolution": ("INT", {"default": 512, "min": 64, "max": MAX_RESOLUTION, "step": 64})
-        }
-    }
+def define_preprocessor_inputs(**arguments):
+    return dict(
+        required=dict(image=INPUT.IMAGE()),
+        optional=arguments
+    )
+
+class INPUT(Enum):
+    def IMAGE():
+        return ("IMAGE",)
+    def LATENT():
+        return ("LATENT",)
+    def MASK():
+        return ("MASK",)
+    def SEED(default=0):
+        return ("INT", dict(default=default, min=0, max=0xffffffffffffffff))
+    def RESOLUTION(default=512, min=64, max=MAX_RESOLUTION, step=64): 
+        return ("INT", dict(default=default, min=min, max=max, step=step))
+    def INT(default=0, min=0, max=MAX_RESOLUTION, step=1): 
+        return ("INT", dict(default=default, min=min, max=max, step=step))
+    def FLOAT(default=0, min=0, max=1, step=0.01):
+        return ("FLOAT", dict(default=default, min=min, max=max, step=step))
+    def STRING(default='', multiline=False): 
+        return ("STRING", dict(default=default, multiline=multiline))
+    def COMBO(values, default=None):
+        return (values, dict(default=values[0] if default is None else default))
+    def BOOLEAN(default=True):
+        return ("BOOLEAN", dict(default=default))
+
+
 
 class ResizeMode(Enum):
     """
